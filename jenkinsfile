@@ -1,18 +1,16 @@
 pipeline {
     agent any
 
-    environment {
-        DOCKER_IMAGE = "hariharan0803/addressbook-app"
-    }
-
     stages {
-        stage('Checkout') {
+
+        stage('Clone') {
             steps {
-                git 'https://github.com/ImamKasali/addressbook.git'
+                git branch: 'master',
+                    url: 'https://github.com/hariharanrajuuu/addressbook.git'
             }
         }
 
-        stage('Build WAR') {
+        stage('Build') {
             steps {
                 sh 'mvn clean package -DskipTests'
             }
@@ -20,23 +18,21 @@ pipeline {
 
         stage('Docker Build') {
             steps {
-                sh 'docker build -t $DOCKER_IMAGE:latest .'
+                sh 'docker build -t addressbook .'
             }
         }
 
-        stage('Push to DockerHub') {
+        stage('Deploy') {
             steps {
-                withCredentials([usernamePassword(credentialsId: '6db80ad7-09a8-4d81-a46f-f91ae5c71f7c', usernameVariable: 'USER', passwordVariable: 'PASS')]) {
-                    sh 'echo $PASS | docker login -u $USER --password-stdin'
-                    sh 'docker push $DOCKER_IMAGE:latest'
-                }
-            }
-        }
+                sh '''
+                docker stop addressbook || true
+                docker rm addressbook || true
 
-        stage('Deploy on EC2') {
-            steps {
-                sh 'docker rm -f addressbook || true'
-                sh 'docker run -d -p 9090:8080 --name addressbook $DOCKER_IMAGE:latest'
+                docker run -d \
+                --name addressbook \
+                -p 8081:8080 \
+                addressbook
+                '''
             }
         }
     }
